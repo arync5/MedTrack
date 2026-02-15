@@ -1,0 +1,503 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MedTrack — Medication Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #f0f4f3;
+    --card: #ffffff;
+    --primary: #1a6b5a;
+    --primary-light: #e8f5f0;
+    --primary-glow: #2dd4a8;
+    --accent: #e8573a;
+    --accent-light: #fff0ed;
+    --text: #1a2e2a;
+    --muted: #7a9490;
+    --border: #d8e4e0;
+    --taken: #1a6b5a;
+    --missed: #e8573a;
+    --pending: #d4a72c;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* Subtle background texture */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: -1;
+    background:
+      radial-gradient(ellipse at 20% 0%, rgba(26,107,90,0.06) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 100%, rgba(232,87,58,0.04) 0%, transparent 50%);
+  }
+
+  .app { max-width: 900px; margin: 0 auto; padding: 30px 20px 100px; }
+
+  /* Header */
+  .header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 32px;
+  }
+  .header h1 {
+    font-family: 'Playfair Display', serif;
+    font-size: 28px; color: var(--primary);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .header h1 span { font-size: 24px; }
+  .date-display { color: var(--muted); font-size: 14px; font-weight: 500; }
+
+  /* Stats row */
+  .stats {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 14px; margin-bottom: 28px;
+  }
+  .stat-card {
+    background: var(--card);
+    border-radius: 16px; padding: 20px;
+    border: 1px solid var(--border);
+    text-align: center;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(26,107,90,0.08); }
+  .stat-number { font-size: 32px; font-weight: 700; line-height: 1; }
+  .stat-number.green { color: var(--taken); }
+  .stat-number.red { color: var(--missed); }
+  .stat-number.yellow { color: var(--pending); }
+  .stat-label { font-size: 12px; color: var(--muted); margin-top: 6px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.5px; }
+
+  /* Adherence ring */
+  .adherence-section {
+    background: var(--card); border-radius: 20px; padding: 28px;
+    border: 1px solid var(--border); margin-bottom: 28px;
+    display: flex; align-items: center; gap: 30px;
+  }
+  .ring-container { position: relative; width: 120px; height: 120px; flex-shrink: 0; }
+  .ring-container svg { transform: rotate(-90deg); }
+  .ring-label {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .ring-percent { font-size: 28px; font-weight: 700; color: var(--primary); }
+  .ring-sub { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .adherence-info h3 { font-size: 16px; margin-bottom: 8px; }
+  .adherence-info p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+  .streak { display: inline-flex; align-items: center; gap: 6px; background: var(--primary-light); color: var(--primary); font-size: 13px; font-weight: 600; padding: 6px 14px; border-radius: 20px; margin-top: 12px; }
+
+  /* Medication List */
+  .section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .section-header h2 { font-size: 18px; font-weight: 600; }
+  .add-btn {
+    background: var(--primary); color: #fff; border: none;
+    padding: 10px 20px; border-radius: 12px; font: 600 13px 'DM Sans', sans-serif;
+    cursor: pointer; transition: 0.2s; display: flex; align-items: center; gap: 6px;
+  }
+  .add-btn:hover { background: #155a4b; transform: translateY(-1px); }
+
+  .med-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px; }
+
+  .med-card {
+    background: var(--card); border-radius: 16px; padding: 20px;
+    border: 1px solid var(--border);
+    display: flex; align-items: center; gap: 16px;
+    transition: all 0.2s;
+    animation: slideIn 0.3s ease-out both;
+  }
+  .med-card:hover { box-shadow: 0 4px 20px rgba(26,107,90,0.06); }
+  @keyframes slideIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  .med-icon {
+    width: 52px; height: 52px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; flex-shrink: 0;
+  }
+  .med-icon.pill { background: #e8f5f0; }
+  .med-icon.capsule { background: #eef0ff; }
+  .med-icon.liquid { background: #fff5e6; }
+  .med-icon.injection { background: #fce8e8; }
+
+  .med-details { flex: 1; min-width: 0; }
+  .med-name { font-weight: 600; font-size: 15px; margin-bottom: 3px; }
+  .med-dosage { font-size: 13px; color: var(--muted); }
+  .med-schedule { font-size: 12px; color: var(--muted); margin-top: 4px; display: flex; align-items: center; gap: 4px; }
+
+  .med-actions { display: flex; gap: 8px; flex-shrink: 0; }
+  .dose-btn {
+    border: none; border-radius: 10px; padding: 10px 16px;
+    font: 600 12px 'DM Sans', sans-serif; cursor: pointer;
+    transition: all 0.2s; text-transform: uppercase; letter-spacing: 0.3px;
+  }
+  .dose-btn.take { background: var(--primary-light); color: var(--primary); }
+  .dose-btn.take:hover { background: var(--primary); color: #fff; }
+  .dose-btn.taken { background: var(--primary); color: #fff; pointer-events: none; }
+  .dose-btn.skip { background: var(--accent-light); color: var(--accent); }
+  .dose-btn.skip:hover { background: var(--accent); color: #fff; }
+  .dose-btn.skipped { background: var(--accent); color: #fff; opacity: 0.7; pointer-events: none; }
+  .remove-btn {
+    background: none; border: none; color: var(--muted); cursor: pointer;
+    font-size: 16px; padding: 4px; opacity: 0.4; transition: 0.2s;
+  }
+  .remove-btn:hover { opacity: 1; color: var(--accent); }
+
+  /* Today's timeline */
+  .timeline { margin-bottom: 32px; }
+  .time-slot {
+    display: flex; gap: 16px; align-items: flex-start; padding: 14px 0;
+    border-bottom: 1px solid rgba(0,0,0,0.04);
+  }
+  .time-label {
+    width: 70px; font-size: 13px; font-weight: 600; color: var(--muted);
+    text-align: right; padding-top: 2px; flex-shrink: 0;
+  }
+  .time-meds { display: flex; flex-wrap: wrap; gap: 8px; }
+  .time-pill {
+    padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 600;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .time-pill.done { background: var(--primary-light); color: var(--primary); }
+  .time-pill.upcoming { background: #f5f5f5; color: var(--muted); border: 1px dashed var(--border); }
+  .time-pill.missed { background: var(--accent-light); color: var(--accent); text-decoration: line-through; }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,0.4);
+    display: none; align-items: center; justify-content: center;
+    z-index: 100; backdrop-filter: blur(4px);
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: var(--card); border-radius: 24px; padding: 32px;
+    width: 90%; max-width: 420px;
+    animation: modalIn 0.25s ease-out;
+  }
+  @keyframes modalIn { from { opacity: 0; transform: scale(0.95) translateY(10px); } }
+  .modal h2 { font-size: 20px; margin-bottom: 24px; display: flex; align-items: center; gap: 8px; }
+  .form-group { margin-bottom: 18px; }
+  .form-group label {
+    display: block; font-size: 12px; font-weight: 600; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;
+  }
+  .form-group input, .form-group select {
+    width: 100%; padding: 12px 16px; border-radius: 12px;
+    border: 1.5px solid var(--border); font: 400 14px 'DM Sans', sans-serif;
+    color: var(--text); background: var(--bg); transition: 0.2s;
+  }
+  .form-group input:focus, .form-group select:focus {
+    outline: none; border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(26,107,90,0.1);
+  }
+  .type-selector { display: flex; gap: 8px; }
+  .type-option {
+    flex: 1; padding: 12px; border-radius: 12px; border: 1.5px solid var(--border);
+    text-align: center; cursor: pointer; font-size: 13px; font-weight: 500;
+    transition: 0.2s; background: var(--bg);
+  }
+  .type-option:hover { border-color: var(--primary); }
+  .type-option.selected { background: var(--primary-light); border-color: var(--primary); color: var(--primary); }
+  .type-option .icon { font-size: 20px; display: block; margin-bottom: 4px; }
+  .modal-actions { display: flex; gap: 10px; margin-top: 24px; }
+  .modal-actions button {
+    flex: 1; padding: 14px; border-radius: 12px; font: 600 14px 'DM Sans', sans-serif;
+    cursor: pointer; transition: 0.2s; border: none;
+  }
+  .btn-cancel { background: var(--bg); color: var(--muted); }
+  .btn-save { background: var(--primary); color: #fff; }
+  .btn-save:hover { background: #155a4b; }
+
+  /* Log section */
+  .log-section { margin-top: 10px; }
+  .log-entry {
+    display: flex; align-items: center; gap: 12px;
+    padding: 10px 0; border-bottom: 1px solid rgba(0,0,0,0.04);
+    font-size: 13px; animation: slideIn 0.2s ease-out;
+  }
+  .log-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .log-dot.taken-dot { background: var(--taken); }
+  .log-dot.skipped-dot { background: var(--missed); }
+  .log-time { color: var(--muted); font-weight: 500; width: 65px; }
+  .log-msg { flex: 1; }
+  .log-empty { text-align: center; padding: 40px; color: var(--muted); font-size: 14px; }
+
+  @media (max-width: 600px) {
+    .stats { grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .stat-card { padding: 14px; }
+    .stat-number { font-size: 24px; }
+    .adherence-section { flex-direction: column; text-align: center; }
+    .med-card { flex-wrap: wrap; }
+    .med-actions { width: 100%; justify-content: flex-end; }
+  }
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <h2>💊 Add Medication</h2>
+    <div class="form-group">
+      <label>Medication Name</label>
+      <input type="text" id="medName" placeholder="e.g., Amoxicillin">
+    </div>
+    <div class="form-group">
+      <label>Dosage</label>
+      <input type="text" id="medDosage" placeholder="e.g., 500mg">
+    </div>
+    <div class="form-group">
+      <label>Type</label>
+      <div class="type-selector" id="typeSelector">
+        <div class="type-option selected" data-type="pill"><span class="icon">💊</span>Pill</div>
+        <div class="type-option" data-type="capsule"><span class="icon">🔵</span>Capsule</div>
+        <div class="type-option" data-type="liquid"><span class="icon">🧴</span>Liquid</div>
+        <div class="type-option" data-type="injection"><span class="icon">💉</span>Injection</div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Frequency</label>
+      <select id="medFreq">
+        <option value="Once daily">Once daily</option>
+        <option value="Twice daily">Twice daily</option>
+        <option value="Three times daily">Three times daily</option>
+        <option value="Every 8 hours">Every 8 hours</option>
+        <option value="As needed">As needed</option>
+        <option value="Weekly">Weekly</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Scheduled Time</label>
+      <input type="time" id="medTime" value="08:00">
+    </div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" onclick="saveMed()">Add Medication</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// State
+let medications = [
+  { id: 1, name: 'Lisinopril', dosage: '10mg', type: 'pill', freq: 'Once daily', time: '08:00', status: 'taken' },
+  { id: 2, name: 'Metformin', dosage: '500mg', type: 'capsule', freq: 'Twice daily', time: '08:00', status: 'taken' },
+  { id: 3, name: 'Vitamin D3', dosage: '2000 IU', type: 'capsule', freq: 'Once daily', time: '12:00', status: 'pending' },
+  { id: 4, name: 'Ibuprofen', dosage: '200mg', type: 'pill', freq: 'As needed', time: '18:00', status: 'pending' },
+];
+
+let log = [
+  { time: '8:02 AM', msg: 'Took Lisinopril 10mg', type: 'taken' },
+  { time: '8:02 AM', msg: 'Took Metformin 500mg', type: 'taken' },
+];
+
+let selectedType = 'pill';
+let nextId = 5;
+
+const icons = { pill: '💊', capsule: '🔵', liquid: '🧴', injection: '💉' };
+
+function getStats() {
+  const taken = medications.filter(m => m.status === 'taken').length;
+  const skipped = medications.filter(m => m.status === 'skipped').length;
+  const pending = medications.filter(m => m.status === 'pending').length;
+  const total = medications.length;
+  const adherence = total > 0 ? Math.round((taken / Math.max(taken + skipped, 1)) * 100) : 100;
+  return { taken, skipped, pending, total, adherence };
+}
+
+function formatTime(t) {
+  const [h, m] = t.split(':');
+  const hr = parseInt(h);
+  return `${hr > 12 ? hr - 12 : hr || 12}:${m} ${hr >= 12 ? 'PM' : 'AM'}`;
+}
+
+function render() {
+  const s = getStats();
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+
+  // Adherence ring SVG
+  const circumference = 2 * Math.PI * 50;
+  const offset = circumference - (s.adherence / 100) * circumference;
+
+  document.getElementById('app').innerHTML = `
+    <div class="header">
+      <div>
+        <h1><span>⚕️</span> MedTrack</h1>
+        <div class="date-display">${dateStr}</div>
+      </div>
+    </div>
+
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-number green">${s.taken}</div>
+        <div class="stat-label">Taken</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number yellow">${s.pending}</div>
+        <div class="stat-label">Pending</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-number red">${s.skipped}</div>
+        <div class="stat-label">Skipped</div>
+      </div>
+    </div>
+
+    <div class="adherence-section">
+      <div class="ring-container">
+        <svg width="120" height="120" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="50" fill="none" stroke="#e8f0ed" stroke-width="10"/>
+          <circle cx="60" cy="60" r="50" fill="none" stroke="${s.adherence > 70 ? 'var(--primary)' : s.adherence > 40 ? 'var(--pending)' : 'var(--accent)'}"
+            stroke-width="10" stroke-linecap="round"
+            stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"
+            style="transition: stroke-dashoffset 0.6s ease"/>
+        </svg>
+        <div class="ring-label">
+          <div class="ring-percent">${s.adherence}%</div>
+          <div class="ring-sub">Adherence</div>
+        </div>
+      </div>
+      <div class="adherence-info">
+        <h3>Today's Adherence</h3>
+        <p>${s.taken} of ${s.total} medications logged today. ${s.pending > 0 ? `You still have ${s.pending} dose${s.pending > 1 ? 's' : ''} upcoming.` : 'All doses are accounted for!'}</p>
+        <div class="streak">🔥 ${3 + s.taken}-day streak</div>
+      </div>
+    </div>
+
+    <div class="section-header">
+      <h2>My Medications</h2>
+      <button class="add-btn" onclick="openModal()">＋ Add Med</button>
+    </div>
+    <div class="med-list">
+      ${medications.map((m, i) => `
+        <div class="med-card" style="animation-delay: ${i * 0.05}s">
+          <div class="med-icon ${m.type}">${icons[m.type]}</div>
+          <div class="med-details">
+            <div class="med-name">${m.name}</div>
+            <div class="med-dosage">${m.dosage} · ${m.type}</div>
+            <div class="med-schedule">🕐 ${formatTime(m.time)} · ${m.freq}</div>
+          </div>
+          <div class="med-actions">
+            ${m.status === 'taken'
+              ? `<button class="dose-btn taken">✓ Taken</button>`
+              : m.status === 'skipped'
+              ? `<button class="dose-btn skipped">Skipped</button>`
+              : `<button class="dose-btn take" onclick="takeDose(${m.id})">Take</button>
+                 <button class="dose-btn skip" onclick="skipDose(${m.id})">Skip</button>`
+            }
+            <button class="remove-btn" onclick="removeMed(${m.id})">✕</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="section-header"><h2>Today's Schedule</h2></div>
+    <div class="timeline">
+      ${buildTimeline()}
+    </div>
+
+    <div class="section-header"><h2>Activity Log</h2></div>
+    <div class="log-section">
+      ${log.length === 0
+        ? '<div class="log-empty">No activity yet today. Take your first dose!</div>'
+        : log.slice().reverse().map(l => `
+          <div class="log-entry">
+            <div class="log-dot ${l.type === 'taken' ? 'taken-dot' : 'skipped-dot'}"></div>
+            <div class="log-time">${l.time}</div>
+            <div class="log-msg">${l.msg}</div>
+          </div>
+        `).join('')
+      }
+    </div>
+  `;
+}
+
+function buildTimeline() {
+  const slots = {};
+  medications.forEach(m => {
+    const t = formatTime(m.time);
+    if (!slots[t]) slots[t] = [];
+    slots[t].push(m);
+  });
+  return Object.entries(slots).map(([time, meds]) => `
+    <div class="time-slot">
+      <div class="time-label">${time}</div>
+      <div class="time-meds">
+        ${meds.map(m => `
+          <div class="time-pill ${m.status === 'taken' ? 'done' : m.status === 'skipped' ? 'missed' : 'upcoming'}">
+            ${icons[m.type]} ${m.name}${m.status === 'taken' ? ' ✓' : ''}
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+function takeDose(id) {
+  const med = medications.find(m => m.id === id);
+  if (!med) return;
+  med.status = 'taken';
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  log.push({ time: timeStr, msg: `Took ${med.name} ${med.dosage}`, type: 'taken' });
+  render();
+}
+
+function skipDose(id) {
+  const med = medications.find(m => m.id === id);
+  if (!med) return;
+  med.status = 'skipped';
+  const now = new Date();
+  const timeStr = now.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  log.push({ time: timeStr, msg: `Skipped ${med.name} ${med.dosage}`, type: 'skipped' });
+  render();
+}
+
+function removeMed(id) {
+  medications = medications.filter(m => m.id !== id);
+  render();
+}
+
+function openModal() {
+  document.getElementById('modal').classList.add('active');
+  document.getElementById('medName').focus();
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('active');
+  document.getElementById('medName').value = '';
+  document.getElementById('medDosage').value = '';
+}
+
+function saveMed() {
+  const name = document.getElementById('medName').value.trim();
+  const dosage = document.getElementById('medDosage').value.trim();
+  const freq = document.getElementById('medFreq').value;
+  const time = document.getElementById('medTime').value;
+  if (!name || !dosage) return;
+  medications.push({ id: nextId++, name, dosage, type: selectedType, freq, time, status: 'pending' });
+  closeModal();
+  render();
+}
+
+// Type selector
+document.addEventListener('click', e => {
+  if (e.target.closest('.type-option')) {
+    const opt = e.target.closest('.type-option');
+    document.querySelectorAll('.type-option').forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    selectedType = opt.dataset.type;
+  }
+  // Close modal on overlay click
+  if (e.target.id === 'modal') closeModal();
+});
+
+render();
+</script>
+</body>
+</html>
